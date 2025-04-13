@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>0/1 Knapsack Simulation</title>
+  <link rel="stylesheet" href="style.css">
+  
+</head>
+<body>
+
+  <h2>0/1 Knapsack Dynamic Programming Simulator</h2>
+
+  <div class="wrapper">
+    <div class="input-container">
+      <label>Weights (comma-separated):</label>
+      <input id="weights" placeholder="e.g. 1,2,3">
+
+      <label>Values (comma-separated):</label>
+      <input id="values" placeholder="e.g. 10,20,30">
+
+      <label>Knapsack Capacity:</label>
+      <input id="capacity" type="number" placeholder="e.g. 5">
+
+      <button onclick="startSimulation()">Start Simulation</button>
+    </div>
+
+    <div id="result"></div>
+    <div id="grid"></div>
+  </div>
+
+  <script>
+    let weights = [], values = [], capacity = 0, n = 0;
+    let dp = [], labels = [], i = 1, w = 0;
+
+    function startSimulation() {
+      weights = document.getElementById("weights").value.split(',').map(Number);
+      values = document.getElementById("values").value.split(',').map(Number);
+      capacity = parseInt(document.getElementById("capacity").value);
+      n = weights.length;
+
+      if (n !== values.length || isNaN(capacity)) {
+        alert("Please check your input. Lengths must match and capacity must be a number.");
+        return;
+      }
+
+      dp = Array.from({ length: n + 1 }, () => Array(capacity + 1).fill(0));
+      labels = [];
+
+      i = 1;
+      w = 0;
+
+      document.getElementById("result").style.display = "none";
+      buildGrid();
+      simulateStep();
+    }
+
+    function buildGrid() {
+      const grid = document.getElementById("grid");
+      grid.innerHTML = "";
+
+      const headerRow = document.createElement("div");
+      headerRow.className = "row";
+      headerRow.appendChild(createCell("i/w", true));
+      for (let j = 0; j <= capacity; j++) {
+        headerRow.appendChild(createCell(j, true));
+      }
+      grid.appendChild(headerRow);
+
+      for (let i = 0; i <= n; i++) {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.appendChild(createCell(i, true));
+        let rowCells = [];
+        for (let j = 0; j <= capacity; j++) {
+          const cell = createCell(0);
+          row.appendChild(cell);
+          rowCells.push(cell);
+        }
+        labels.push(rowCells);
+        grid.appendChild(row);
+      }
+    }
+
+    function createCell(value, isHeader = false) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      if (isHeader) cell.classList.add("header");
+      cell.innerText = value;
+      return cell;
+    }
+
+    function simulateStep() {
+      if (i > n) {
+        showResult();
+        return;
+      }
+
+      if (weights[i - 1] <= w) {
+        dp[i][w] = Math.max(dp[i - 1][w], dp[i - 1][w - weights[i - 1]] + values[i - 1]);
+      } else {
+        dp[i][w] = dp[i - 1][w];
+      }
+
+      labels[i][w].innerText = dp[i][w];
+      labels[i][w].classList.add("highlight");
+
+      if (w > 0) labels[i][w - 1].classList.remove("highlight");
+      else if (i > 1) labels[i - 1][capacity].classList.remove("highlight");
+
+      w++;
+      if (w > capacity) {
+        w = 0;
+        i++;
+      }
+
+      setTimeout(simulateStep, 200);
+    }
+
+    function showResult() {
+      let selected = [];
+      let w = capacity;
+      for (let i = n; i > 0; i--) {
+        if (dp[i][w] !== dp[i - 1][w]) {
+          selected.push(i - 1);
+          w -= weights[i - 1];
+        }
+      }
+      selected.reverse();
+
+      let itemDetails = selected.map(i =>
+        `Item ${i + 1} ⚖️ ${weights[i]} | 💰 ${values[i]}`
+      ).join('<br>');
+
+     
+
+      document.getElementById("result").style.display = "block";
+      document.getElementById("result").innerHTML =
+        `✅ <b>Max Value:</b> ${dp[n][capacity]}<br><br>
+         📦 <b>Selected Items:</b><br>${itemDetails}`;
+    }
+  </script>
+
+</body>
+</html>
