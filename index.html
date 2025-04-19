@@ -2,35 +2,65 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>0/1 Knapsack Simulation</title>
   <link rel="stylesheet" href="style.css">
-  
 </head>
 <body>
-
   <h2>0/1 Knapsack Dynamic Programming Simulator</h2>
 
   <div class="wrapper">
     <div class="input-container">
       <label>Weights (comma-separated):</label>
       <input id="weights" placeholder="e.g. 1,2,3">
-
       <label>Values (comma-separated):</label>
       <input id="values" placeholder="e.g. 10,20,30">
-
       <label>Knapsack Capacity:</label>
       <input id="capacity" type="number" placeholder="e.g. 5">
-
-      <button onclick="startSimulation()">Start Simulation</button>
+      <div class="button-group">
+        <button onclick="startSimulation()">Start Simulation</button>
+        <button onclick="generateRandomInputs()">Random Inputs</button>
+      </div>
+      <div class="controls">
+        <button onclick="pauseSimulation()">Pause</button>
+        <button onclick="stepForward()">Step Forward</button>
+        <button onclick="stepBackward()">Step Backward</button>
+        <button onclick="resumeSimulation()">Resume</button>
+      </div>
     </div>
 
+    <div id="items-container"></div>
     <div id="result"></div>
     <div id="grid"></div>
+
+    <div class="explanation-panel">
+      <div class="explanation-button-container">
+        <button onclick="toggleExplanation()">Toggle Explanation</button>
+      </div>
+      <div id="explanation-content" style="display: none;">
+        <h3>0/1 Knapsack Algorithm</h3>
+        <p>The 0/1 Knapsack Problem is a classic dynamic programming problem where you must select a subset of items to maximize value while staying within a weight capacity.</p>
+        <p><b>Steps:</b></p>
+        <ul>
+          <li>Create a DP table where <code>dp[i][w]</code> represents the maximum value achievable with the first <code>i</code> items and weight capacity <code>w</code>.</li>
+          <li>For each item and weight, decide whether to include the item (if it fits) or exclude it, taking the maximum value.</li>
+          <li>Backtrack through the table to find the selected items.</li>
+        </ul>
+        <p><b>Time Complexity:</b> O(n * capacity)</p>
+        <p><b>Space Complexity:</b> O(n * capacity)</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="theme-toggle">
+    <button onclick="toggleTheme()">Toggle Dark Mode</button>
   </div>
 
   <script>
     let weights = [], values = [], capacity = 0, n = 0;
     let dp = [], labels = [], i = 1, w = 0;
+    let isPaused = false;
+    let history = [];
 
     function startSimulation() {
       weights = document.getElementById("weights").value.split(',').map(Number);
@@ -38,20 +68,33 @@
       capacity = parseInt(document.getElementById("capacity").value);
       n = weights.length;
 
-      if (n !== values.length || isNaN(capacity)) {
-        alert("Please check your input. Lengths must match and capacity must be a number.");
+      if (n !== values.length || isNaN(capacity) || weights.some(isNaN) || values.some(isNaN)) {
+        alert("Invalid input. Ensure weights and values match in length, are numbers, and capacity is a number.");
         return;
       }
 
       dp = Array.from({ length: n + 1 }, () => Array(capacity + 1).fill(0));
       labels = [];
-
+      history = [];
       i = 1;
       w = 0;
+      isPaused = false;
 
       document.getElementById("result").style.display = "none";
       buildGrid();
+      renderItems();
       simulateStep();
+    }
+
+    function generateRandomInputs() {
+      const itemCount = Math.floor(Math.random() * 5) + 3; // 3 to 7 items
+      weights = Array.from({ length: itemCount }, () => Math.floor(Math.random() * 10) + 1);
+      values = Array.from({ length: itemCount }, () => Math.floor(Math.random() * 50) + 10);
+      capacity = Math.floor(Math.random() * (weights.reduce((a, b) => a + b, 0) / 2)) + 5;
+
+      document.getElementById("weights").value = weights.join(',');
+      document.getElementById("values").value = values.join(',');
+      document.getElementById("capacity").value = capacity;
     }
 
     function buildGrid() {
@@ -89,11 +132,30 @@
       return cell;
     }
 
+    function renderItems() {
+      const container = document.getElementById("items-container");
+      container.innerHTML = "";
+      weights.forEach((weight, index) => {
+        const item = document.createElement("div");
+        item.className = "item-card";
+        item.id = `item-${index}`;
+        item.innerHTML = `
+          <span>Item ${index + 1}</span>
+          <span>⚖️ ${weight}</span>
+          <span>💰 ${values[index]}</span>
+        `;
+        container.appendChild(item);
+      });
+    }
+
     function simulateStep() {
+      if (isPaused) return;
       if (i > n) {
         showResult();
         return;
       }
+
+      history.push({ i, w, dp: dp.map(row => [...row]) });
 
       if (weights[i - 1] <= w) {
         dp[i][w] = Math.max(dp[i - 1][w], dp[i - 1][w - weights[i - 1]] + values[i - 1]);
@@ -116,6 +178,61 @@
       setTimeout(simulateStep, 200);
     }
 
+    function pauseSimulation() {
+      isPaused = true;
+    }
+
+    function resumeSimulation() {
+      isPaused = false;
+      simulateStep();
+    }
+
+    function stepForward() {
+      if (i > n) return; // Stop if simulation is complete
+      isPaused = true; // Ensure paused state for manual control
+
+      // Save current state
+      history.push({ i, w, dp: dp.map(row => [...row]) });
+
+      // Perform a single step
+      if (weights[i - 1] <= w) {
+        dp[i][w] = Math.max(dp[i - 1][w], dp[i - 1][w - weights[i - 1]] + values[i - 1]);
+      } else {
+        dp[i][w] = dp[i - 1][w];
+      }
+
+      // Update UI
+      labels[i][w].innerText = dp[i][w];
+      labels[i][w].classList.add("highlight");
+
+      if (w > 0) labels[i][w - 1].classList.remove("highlight");
+      else if (i > 1) labels[i - 1][capacity].classList.remove("highlight");
+
+      // Move to next step
+      w++;
+      if (w > capacity) {
+        w = 0;
+        i++;
+        if (i > n) showResult(); // Show result if done
+      }
+    }
+
+    function stepBackward() {
+      if (history.length === 0) return;
+      const lastState = history.pop();
+      i = lastState.i;
+      w = lastState.w;
+      dp = lastState.dp.map(row => [...row]);
+
+      for (let x = 0; x <= n; x++) {
+        for (let y = 0; y <= capacity; y++) {
+          labels[x][y].innerText = dp[x][y];
+          labels[x][y].classList.remove("highlight");
+        }
+      }
+      if (i <= n && w <= capacity) labels[i][w].classList.add("highlight");
+    }
+
     function showResult() {
       let selected = [];
       let w = capacity;
@@ -123,6 +240,7 @@
         if (dp[i][w] !== dp[i - 1][w]) {
           selected.push(i - 1);
           w -= weights[i - 1];
+          document.getElementById(`item-${i - 1}`).classList.add("selected");
         }
       }
       selected.reverse();
@@ -131,14 +249,20 @@
         `Item ${i + 1} ⚖️ ${weights[i]} | 💰 ${values[i]}`
       ).join('<br>');
 
-     
-
       document.getElementById("result").style.display = "block";
       document.getElementById("result").innerHTML =
         `✅ <b>Max Value:</b> ${dp[n][capacity]}<br><br>
          📦 <b>Selected Items:</b><br>${itemDetails}`;
     }
-  </script>
 
+    function toggleExplanation() {
+      const content = document.getElementById("explanation-content");
+      content.style.display = content.style.display === "none" ? "block" : "none";
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle("dark-mode");
+    }
+  </script>
 </body>
 </html>
